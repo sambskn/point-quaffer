@@ -1,0 +1,8 @@
+[package]
+name = "point-quaffer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+threecrate = {version ="0.5.0", features = ["algorithms", "gpu", "simplification", "reconstruction", "visualization"]}
+threecrate-io = { version = "0.5.0", features = ["las_laz", "io-mmap"] }
