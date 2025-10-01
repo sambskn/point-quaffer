@@ -1,5 +1,3 @@
-
-
 // point cloud readin' son
 use las::Reader;
 use std::collections::HashMap;
@@ -24,7 +22,6 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 // (testing with USGS data)
 // and dump it into a geoparquet file
 pub fn read_laz_to_gpq(filename: String, outfile_path: String) -> Result<()> {
-
     println!("Opening point cloud .laz file at {filename}");
     let mut reader = Reader::from_path(filename)?;
 
