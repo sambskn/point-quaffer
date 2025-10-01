@@ -1,6 +1,8 @@
 // get our modules
 mod laz_to_gpq;
 use laz_to_gpq::read_laz_to_gpq;
+mod read_parq;
+use read_parq::read;
 
 use clap::{Parser, Subcommand};
 
@@ -37,8 +39,7 @@ fn main() -> Result<()> {
             read_laz_to_gpq(input.to_string(), outfile_path)
         }
         ProcessType::Viz { input } => {
-            println!("hey boss can we visualize {} yet?", input);
-            println!("he said no");
+            read(input);
             Ok(())
         }
     }
