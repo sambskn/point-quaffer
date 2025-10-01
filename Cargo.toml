@@ -4,6 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-flatgeobuf = "5.0.0"
+arrow-array = "56.2.0"
+arrow-schema = "56.2.0"
+geo = "0.31.0"
+geoarrow = { version ="0.5.0" }
+geoarrow-array = "0.5.0"
+geoparquet = "0.5.0"
 geozero = "0.14.0"
 las = { version = "0.9", features = ["laz-parallel"] }
+parquet = "56.2.0"

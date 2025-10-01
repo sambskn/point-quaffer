@@ -1,114 +1,166 @@
 // point cloud readin' son
 use las::Reader;
-
+use std::collections::HashMap;
 // for arg handling
 use std::env;
 use std::fs::File;
+// geoarrow!
+use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
+use arrow_schema::{DataType, Field, Schema};
+use geoarrow::array::PointBuilder;
+use geoarrow::datatypes::{Dimension, PointType};
+use geoarrow_array::GeoArrowArray;
+use std::sync::Arc;
+// geoparquet writer
+use geoparquet::writer::{GeoParquetRecordBatchEncoder, GeoParquetWriterOptions};
+use parquet::arrow::ArrowWriter;
+use parquet::basic::Compression;
+use parquet::file::properties::WriterProperties;
 
-// fgb!
-use flatgeobuf::*;
-use geozero::geojson::GeoJson;
-use geozero::{ColumnValue, PropertyProcessor};
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() == 1 {
-        println!("point quaffer v0.1.0");
+        println!("point quaffer v0.2.0 (GeoArrow edition)");
         println!("  ->  provide a filename/path to a .laz to continue");
         return Ok(());
     }
 
     let filename = &args[1];
-    let outfile_path = format!("{}.fgb", filename.trim_end_matches(".laz"));
-
-    let mut fgb = FgbWriter::create(outfile_path.as_str(), GeometryType::Point)?;
-    fgb.add_column("fid", ColumnType::Long, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("intensity", ColumnType::Long, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("return_number", ColumnType::Long, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("number_of_returns", ColumnType::Long, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("scan_direction", ColumnType::String, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("classification", ColumnType::String, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("scan_angle", ColumnType::Double, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("point_source_id", ColumnType::Long, |_fbb, col| {
-        col.nullable = false;
-    });
-    fgb.add_column("gps_time", ColumnType::Double, |_fbb, col| {
-        col.nullable = false;
-    });
+    let outfile_path = format!("{}.parquet", filename.trim_end_matches(".laz"));
 
     println!("Opening point cloud .laz file at {filename}");
-    let mut reader = Reader::from_path(filename).expect("Couldn't open a reader");
-    let mut i = 0;
+    let mut reader = Reader::from_path(filename)?;
+
+    // Vectors to accumulate point data
+    let mut x_coords: Vec<f64> = Vec::new();
+    let mut y_coords: Vec<f64> = Vec::new();
+    let mut z_coords: Vec<f64> = Vec::new();
+    let mut fids: Vec<i64> = Vec::new();
+    let mut intensities: Vec<i64> = Vec::new();
+    let mut return_numbers: Vec<i64> = Vec::new();
+    let mut number_of_returns: Vec<i64> = Vec::new();
+    let mut scan_directions: Vec<String> = Vec::new();
+    let mut classifications: Vec<String> = Vec::new();
+    let mut scan_angles: Vec<f64> = Vec::new();
+    let mut point_source_ids: Vec<i64> = Vec::new();
+    let mut gps_times: Vec<Option<f64>> = Vec::new();
+
+    let mut i: i64 = 0;
     for point in reader.points() {
-        let pnt = point.unwrap();
-        let geom_str = format!(
-            r#"{{"type": "Point", "coordinates": [{}, {}, {}]}}"#,
-            pnt.x, pnt.y, pnt.z
-        );
-        let geom = GeoJson(&geom_str);
-        fgb.add_feature_geom(geom, |feat| {
-            feat.property(0, "fid", &ColumnValue::Long(i)).unwrap();
-            feat.property(1, "intensity", &ColumnValue::Long(pnt.intensity as i64))
-                .unwrap();
-            feat.property(
-                2,
-                "return_number",
-                &ColumnValue::Long(pnt.return_number as i64),
-            )
-            .unwrap();
-            feat.property(
-                3,
-                "number_of_returns",
-                &ColumnValue::Long(pnt.number_of_returns as i64),
-            )
-            .unwrap();
-            feat.property(
-                4,
-                "scan_direction",
-                &ColumnValue::String(match pnt.scan_direction {
-                    las::point::ScanDirection::LeftToRight => "LeftToRight",
-                    las::point::ScanDirection::RightToLeft => "RightToLeft",
-                }),
-            )
-            .unwrap();
-            feat.property(
-                5,
-                "classification",
-                &ColumnValue::String(format!("{:?}", pnt.classification).as_str()),
-            )
-            .unwrap();
-            feat.property(6, "scan_angle", &ColumnValue::Double(pnt.scan_angle as f64))
-                .unwrap();
-            feat.property(
-                7,
-                "point_source_id",
-                &ColumnValue::Long(pnt.point_source_id as i64),
-            )
-            .unwrap();
-            if let Some(gps) = pnt.gps_time {
-                feat.property(8, "gps_time", &ColumnValue::Double(gps))
-                    .unwrap();
-            }
-        })
-        .ok();
+        let pnt = point?;
+
+        x_coords.push(pnt.x);
+        y_coords.push(pnt.y);
+        z_coords.push(pnt.z);
+        fids.push(i);
+        intensities.push(pnt.intensity as i64);
+        return_numbers.push(pnt.return_number as i64);
+        number_of_returns.push(pnt.number_of_returns as i64);
+        scan_directions.push(match pnt.scan_direction {
+            las::point::ScanDirection::LeftToRight => "LeftToRight".to_string(),
+            las::point::ScanDirection::RightToLeft => "RightToLeft".to_string(),
+        });
+        classifications.push(format!("{:?}", pnt.classification));
+        scan_angles.push(pnt.scan_angle as f64);
+        point_source_ids.push(pnt.point_source_id as i64);
+        gps_times.push(pnt.gps_time);
+
         i += 1;
     }
+
     println!("total count {i}");
-    let outfile = File::create(outfile_path)?;
-    fgb.write(outfile)?;
+    println!("Building GeoArrow arrays...");
+
+    // Build the PointArray
+    let point_type = PointType::new(Dimension::XY, Default::default());
+    let data_type_point = point_type.clone().data_type();
+    let mut point_builder = PointBuilder::new(point_type);
+    point_builder.reserve(i as usize);
+
+    for idx in 0..i as usize {
+        point_builder.push_point(Some(&geo::Point::new(x_coords[idx], y_coords[idx])));
+    }
+
+    let point_array = point_builder.finish();
+    // Create metadata arrays
+    let fid_array = Int64Array::from(fids);
+    let z_array = Float64Array::from(z_coords);
+    let intensity_array = Int64Array::from(intensities);
+    let return_number_array = Int64Array::from(return_numbers);
+    let number_of_returns_array = Int64Array::from(number_of_returns);
+    let scan_direction_array = StringArray::from(scan_directions);
+    let classification_array = StringArray::from(classifications);
+    let scan_angle_array = Float64Array::from(scan_angles);
+    let point_source_id_array = Int64Array::from(point_source_ids);
+    let gps_time_array = Float64Array::from(gps_times);
+
+    let mut metadata = HashMap::new();
+    metadata.insert(
+        "ARROW:extension:name".to_string(),
+        "geoarrow.point".to_string(),
+    );
+    metadata.insert("ARROW:extension:metadata".to_string(), "{}".to_string());
+    let geometry_field = Field::new("xy", data_type_point, false).with_metadata(metadata);
+
+    let schema = Schema::new(vec![
+        geometry_field,
+        Field::new("fid", DataType::Int64, false),
+        Field::new("z", DataType::Float64, false),
+        Field::new("intensity", DataType::Int64, false),
+        Field::new("return_number", DataType::Int64, false),
+        Field::new("number_of_returns", DataType::Int64, false),
+        Field::new("scan_direction", DataType::Utf8, false),
+        Field::new("classification", DataType::Utf8, false),
+        Field::new("scan_angle", DataType::Float64, false),
+        Field::new("point_source_id", DataType::Int64, false),
+        Field::new("gps_time", DataType::Float64, true),
+    ]);
+
+    let points_arr_ref: ArrayRef = point_array.into_array_ref();
+    // Create RecordBatch
+    let batch = RecordBatch::try_new(
+        Arc::new(schema.clone()),
+        vec![
+            points_arr_ref,
+            Arc::new(fid_array),
+            Arc::new(z_array),
+            Arc::new(intensity_array),
+            Arc::new(return_number_array),
+            Arc::new(number_of_returns_array),
+            Arc::new(scan_direction_array),
+            Arc::new(classification_array),
+            Arc::new(scan_angle_array),
+            Arc::new(point_source_id_array),
+            Arc::new(gps_time_array),
+        ],
+    )?;
+
+    println!("Writing GeoParquet to {outfile_path}...");
+
+    // Set up GeoParquet encoder
+    let options = GeoParquetWriterOptions::default();
+    let mut gpq_encoder = GeoParquetRecordBatchEncoder::try_new(&schema, &options)?;
+
+    // Create Parquet writer with the target schema from the encoder
+    let file = File::create(&outfile_path)?;
+    let props = WriterProperties::builder()
+        .set_compression(Compression::SNAPPY)
+        .build();
+
+    let mut parquet_writer = ArrowWriter::try_new(file, gpq_encoder.target_schema(), Some(props))?;
+
+    // Encode and write the batch
+    let encoded_batch = gpq_encoder.encode_record_batch(&batch)?;
+    parquet_writer.write(&encoded_batch)?;
+
+    // Add GeoParquet metadata and finish
+    let kv_metadata = gpq_encoder.into_keyvalue()?;
+    parquet_writer.append_key_value_metadata(kv_metadata);
+    parquet_writer.close()?;
+
+    println!("Done! Wrote {i} points to {outfile_path}");
+
     Ok(())
 }

@@ -1,2 +1,4 @@
 /target
 test_*.laz
+test_*.parquet
+test_*.fgb
