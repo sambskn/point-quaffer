@@ -21,6 +21,8 @@ enum ProcessType {
     LazImport {
         // path to .laz file
         input: String,
+        #[arg(short, long)]
+        filter_to_ground: bool,
     },
     // Visualizing an imported set of data
     Viz {
@@ -34,9 +36,16 @@ fn main() -> Result<()> {
     let cli = PointQuaffer::parse();
 
     match &cli.process {
-        ProcessType::LazImport { input } => {
-            let outfile_path = format!("{}.parquet", input.trim_end_matches(".laz"));
-            read_laz_to_gpq(input.to_string(), outfile_path)
+        ProcessType::LazImport {
+            input,
+            filter_to_ground,
+        } => {
+            let mut outfile_path = input.trim_end_matches(".laz").to_string();
+            if *filter_to_ground {
+                outfile_path += "_filter";
+            }
+            outfile_path = format!("{}.parquet", outfile_path);
+            read_laz_to_gpq(input.to_string(), *filter_to_ground, outfile_path)
         }
         ProcessType::Viz { input } => {
             read(input);

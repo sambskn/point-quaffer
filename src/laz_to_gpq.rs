@@ -1,8 +1,10 @@
 // point cloud readin' son
-use las::Reader;
+use las::point::Classification;
+use las::{LazParallelism, Reader, ReaderOptions};
 use std::collections::HashMap;
 // opening/closing files
 use std::fs::File;
+use std::io::BufReader;
 // geoarrow!
 use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, Schema};
@@ -21,9 +23,16 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 // open up a point cloud .laz file
 // (testing with USGS data)
 // and dump it into a geoparquet file
-pub fn read_laz_to_gpq(filename: String, outfile_path: String) -> Result<()> {
+pub fn read_laz_to_gpq(
+    filename: String,
+    filter_to_ground: bool,
+    outfile_path: String,
+) -> Result<()> {
     println!("Opening point cloud .laz file at {filename}");
-    let mut reader = Reader::from_path(filename)?;
+    let file = File::open(filename).unwrap();
+    let options = ReaderOptions::default();
+    options.with_laz_parallelism(LazParallelism::Yes);
+    let mut reader = Reader::with_options(BufReader::new(file), options)?;
 
     // Vectors to accumulate point data
     let mut x_coords: Vec<f64> = Vec::new();
@@ -42,7 +51,10 @@ pub fn read_laz_to_gpq(filename: String, outfile_path: String) -> Result<()> {
     let mut i: i64 = 0;
     for point in reader.points() {
         let pnt = point?;
-
+        // if filter flag was provided, and point isn't ground, dip early
+        if filter_to_ground && pnt.classification != Classification::Ground {
+            continue;
+        }
         x_coords.push(pnt.x);
         y_coords.push(pnt.y);
         z_coords.push(pnt.z);
