@@ -567,6 +567,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
+name = "gdal"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e721cea67b420fd4b5cb15ba8145f2f1d3a6931a27fdbfadb46cff02015e1cde"
+dependencies = [
+ "bitflags",
+ "chrono",
+ "gdal-sys",
+ "geo-types",
+ "semver",
+ "thiserror 2.0.16",
+]
+
+[[package]]
+name = "gdal-sys"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "febef67dc08a956a9ecb04de2b40dbd15ad56be49421aad9ae0cdcbe9a24166c"
+dependencies = [
+ "pkg-config",
+ "semver",
+]
+
+[[package]]
 name = "geo"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1243,13 +1267,16 @@ dependencies = [
  "arrow-array",
  "arrow-schema",
  "clap",
+ "gdal",
  "geo",
  "geoarrow",
  "geoarrow-array",
+ "geoarrow-schema",
  "geoparquet",
  "geozero",
  "las",
  "parquet",
+ "serde_json",
 ]
 
 [[package]]

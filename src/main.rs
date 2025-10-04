@@ -21,8 +21,12 @@ enum ProcessType {
     LazImport {
         // path to .laz file
         input: String,
+        // Only get points classified as ground
         #[arg(short, long)]
         filter_to_ground: bool,
+        // Stop collecting points at this number if provided
+        #[arg(short, long, default_value=None)]
+        max_point_count: Option<i64>,
     },
     // Visualizing an imported set of data
     Viz {
@@ -39,13 +43,19 @@ fn main() -> Result<()> {
         ProcessType::LazImport {
             input,
             filter_to_ground,
+            max_point_count,
         } => {
             let mut outfile_path = input.trim_end_matches(".laz").to_string();
             if *filter_to_ground {
                 outfile_path += "_filter";
             }
             outfile_path = format!("{}.parquet", outfile_path);
-            read_laz_to_gpq(input.to_string(), *filter_to_ground, outfile_path)
+            read_laz_to_gpq(
+                input.to_string(),
+                *filter_to_ground,
+                *max_point_count,
+                outfile_path,
+            )
         }
         ProcessType::Viz { input } => {
             read(input);

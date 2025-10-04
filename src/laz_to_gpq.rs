@@ -1,6 +1,9 @@
+use geoarrow::error::{GeoArrowError, GeoArrowResult};
+use geoarrow_schema::crs::CrsTransform;
 // point cloud readin' son
 use las::point::Classification;
 use las::{LazParallelism, Reader, ReaderOptions};
+use serde_json::Value;
 use std::collections::HashMap;
 // opening/closing files
 use std::fs::File;
@@ -9,16 +12,54 @@ use std::io::BufReader;
 use arrow_array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, Schema};
 use geoarrow::array::PointBuilder;
-use geoarrow::datatypes::{Dimension, PointType};
+use geoarrow::datatypes::{Crs, Dimension, PointType};
 use geoarrow_array::GeoArrowArray;
 use std::sync::Arc;
 // geoparquet writer
-use geoparquet::writer::{GeoParquetRecordBatchEncoder, GeoParquetWriterOptions};
+use geoparquet::writer::{GeoParquetRecordBatchEncoder, GeoParquetWriterOptionsBuilder};
 use parquet::arrow::ArrowWriter;
 use parquet::basic::Compression;
 use parquet::file::properties::WriterProperties;
 
+use gdal::spatial_ref::SpatialRef;
+
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+#[derive(Debug)]
+struct WKTStringTransform {
+    wkt_str: String,
+    proj_str: String,
+}
+
+impl WKTStringTransform {
+    pub fn new(wkt_str: String) -> Self {
+        //println!("wkt parse: \n{}", wkt_str.clone());
+        let spatial_ref = SpatialRef::from_wkt(wkt_str.as_str()).expect("ruh ruh gdal broke");
+        let proj_str = spatial_ref
+            .to_projjson()
+            .expect("oops couldn't make a projjson str");
+        println!("big ol str check {}", proj_str);
+        WKTStringTransform { wkt_str, proj_str }
+    }
+}
+
+impl CrsTransform for WKTStringTransform {
+    fn _convert_to_projjson(
+        &self,
+        _crs: &Crs,
+    ) -> std::result::Result<Option<serde_json::Value>, GeoArrowError> {
+        GeoArrowResult::Ok(Some(Value::String("yo".to_string())))
+    }
+    fn _convert_to_wkt(&self, _crs: &Crs) -> GeoArrowResult<Option<String>> {
+        GeoArrowResult::Ok(Some(self.wkt_str.clone()))
+    }
+    fn extract_projjson(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<Value>> {
+        GeoArrowResult::Ok(Some(Value::String("yo".to_string())))
+    }
+    fn extract_wkt(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<String>> {
+        GeoArrowResult::Ok(Some(self.wkt_str.clone()))
+    }
+}
 
 // open up a point cloud .laz file
 // (testing with USGS data)
@@ -26,6 +67,7 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub fn read_laz_to_gpq(
     filename: String,
     filter_to_ground: bool,
+    max_points: Option<i64>,
     outfile_path: String,
 ) -> Result<()> {
     println!("Opening point cloud .laz file at {filename}");
@@ -33,7 +75,18 @@ pub fn read_laz_to_gpq(
     let options = ReaderOptions::default();
     options.with_laz_parallelism(LazParallelism::Yes);
     let mut reader = Reader::with_options(BufReader::new(file), options)?;
-
+    let mut crs_wkt_string = None;
+    let header = reader.header();
+    if header.has_wkt_crs() {
+        let header_vlrs = header.vlrs();
+        for vlr in header_vlrs {
+            if vlr.description == "WKT Projection" {
+                let data = vlr.data.clone();
+                let parsed_wkt_string = String::from_utf8(data).unwrap();
+                crs_wkt_string = Some(parsed_wkt_string);
+            }
+        }
+    }
     // Vectors to accumulate point data
     let mut x_coords: Vec<f64> = Vec::new();
     let mut y_coords: Vec<f64> = Vec::new();
@@ -48,8 +101,13 @@ pub fn read_laz_to_gpq(
     let mut point_source_ids: Vec<i64> = Vec::new();
     let mut gps_times: Vec<Option<f64>> = Vec::new();
 
+    let has_max = max_points.is_some();
     let mut i: i64 = 0;
     for point in reader.points() {
+        if has_max && i > max_points.unwrap() {
+            println!("Hit limit for max number of points, continuing...");
+            break;
+        }
         let pnt = point?;
         // if filter flag was provided, and point isn't ground, dip early
         if filter_to_ground && pnt.classification != Classification::Ground {
@@ -143,8 +201,16 @@ pub fn read_laz_to_gpq(
 
     println!("Writing GeoParquet to {outfile_path}...");
 
-    // Set up GeoParquet encoder
-    let options = GeoParquetWriterOptions::default();
+    let options = if crs_wkt_string.is_some() {
+        let transform = WKTStringTransform::new(crs_wkt_string.unwrap());
+        println!("{}", transform.proj_str);
+        GeoParquetWriterOptionsBuilder::default()
+            .set_crs_transform(Box::new(transform))
+            .build()
+    } else {
+        GeoParquetWriterOptionsBuilder::default().build()
+    };
+
     let mut gpq_encoder = GeoParquetRecordBatchEncoder::try_new(&schema, &options)?;
 
     // Create Parquet writer with the target schema from the encoder
