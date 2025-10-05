@@ -3,3 +3,13 @@ test_*.laz
 test_*.las
 test_*.parquet
 test_*.fgb
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
