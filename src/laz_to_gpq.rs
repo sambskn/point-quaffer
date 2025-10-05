@@ -33,31 +33,32 @@ struct WKTStringTransform {
 
 impl WKTStringTransform {
     pub fn new(wkt_str: String) -> Self {
-        //println!("wkt parse: \n{}", wkt_str.clone());
-        let spatial_ref = SpatialRef::from_wkt(wkt_str.as_str()).expect("ruh ruh gdal broke");
+        let cleaned_wkt = wkt_str.trim_ascii().trim_end_matches('\0').to_string();
+        let spatial_ref = SpatialRef::from_wkt(&cleaned_wkt).expect("ruh ruh gdal broke");
         let proj_str = spatial_ref
             .to_projjson()
             .expect("oops couldn't make a projjson str");
-        println!("big ol str check {}", proj_str);
         WKTStringTransform { wkt_str, proj_str }
     }
 }
-
 impl CrsTransform for WKTStringTransform {
     fn _convert_to_projjson(
         &self,
         _crs: &Crs,
     ) -> std::result::Result<Option<serde_json::Value>, GeoArrowError> {
-        GeoArrowResult::Ok(Some(Value::String("yo".to_string())))
+        Ok(Some(Value::String(self.proj_str.clone())))
     }
+
     fn _convert_to_wkt(&self, _crs: &Crs) -> GeoArrowResult<Option<String>> {
-        GeoArrowResult::Ok(Some(self.wkt_str.clone()))
+        Ok(Some(self.wkt_str.clone()))
     }
+
     fn extract_projjson(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<Value>> {
-        GeoArrowResult::Ok(Some(Value::String("yo".to_string())))
+        Ok(Some(Value::String(self.proj_str.clone())))
     }
+
     fn extract_wkt(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<String>> {
-        GeoArrowResult::Ok(Some(self.wkt_str.clone()))
+        Ok(Some(self.wkt_str.clone()))
     }
 }
 
@@ -80,7 +81,8 @@ pub fn read_laz_to_gpq(
     if header.has_wkt_crs() {
         let header_vlrs = header.vlrs();
         for vlr in header_vlrs {
-            if vlr.description == "WKT Projection" {
+            if vlr.description.contains("WKT") {
+                println!("found a WKT header!");
                 let data = vlr.data.clone();
                 let parsed_wkt_string = String::from_utf8(data).unwrap();
                 crs_wkt_string = Some(parsed_wkt_string);
@@ -203,7 +205,6 @@ pub fn read_laz_to_gpq(
 
     let options = if crs_wkt_string.is_some() {
         let transform = WKTStringTransform::new(crs_wkt_string.unwrap());
-        println!("{}", transform.proj_str);
         GeoParquetWriterOptionsBuilder::default()
             .set_crs_transform(Box::new(transform))
             .build()
