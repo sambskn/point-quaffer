@@ -33,6 +33,10 @@
   scripts.hello.exec = ''
     echo hello from $GREET
   '';
+  # download kansas laz
+  scripts.kansas_test_data = ''
+    curl -o test_kansas.laz https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/KS_Statewide_2018_A18/KS_Statewide_B2_2018/LAZ/USGS_LPC_KS_Statewide_2018_A18_14S_KH_5005.laz
+  '';
   
   # https://devenv.sh/basics/
   enterShell = ''
