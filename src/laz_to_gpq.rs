@@ -46,7 +46,9 @@ impl CrsTransform for WKTStringTransform {
         &self,
         _crs: &Crs,
     ) -> std::result::Result<Option<serde_json::Value>, GeoArrowError> {
-        Ok(Some(Value::String(self.proj_str.clone())))
+        let json_value: Value =
+            serde_json::from_str(&self.proj_str).expect("couldn't parse json str for proj");
+        Ok(Some(json_value))
     }
 
     fn _convert_to_wkt(&self, _crs: &Crs) -> GeoArrowResult<Option<String>> {
@@ -54,7 +56,9 @@ impl CrsTransform for WKTStringTransform {
     }
 
     fn extract_projjson(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<Value>> {
-        Ok(Some(Value::String(self.proj_str.clone())))
+        let json_value: Value =
+            serde_json::from_str(&self.proj_str).expect("couldn't parse json str for proj");
+        Ok(Some(json_value))
     }
 
     fn extract_wkt(&self, _crs: &Crs) -> geoarrow::error::GeoArrowResult<Option<String>> {
@@ -76,8 +80,11 @@ pub fn read_laz_to_gpq(
     let options = ReaderOptions::default();
     options.with_laz_parallelism(LazParallelism::Yes);
     let mut reader = Reader::with_options(BufReader::new(file), options)?;
-    let mut crs_wkt_string = None;
+    let mut wkt_transform = None;
     let header = reader.header();
+    // try to grab the wkt string verison of the CRS
+    // (according to LAZ spec CRS can either be WKT or 'GeoTIFF' based -
+    // so far all the USGS data sampled has has WKT)
     if header.has_wkt_crs() {
         let header_vlrs = header.vlrs();
         for vlr in header_vlrs {
@@ -85,7 +92,7 @@ pub fn read_laz_to_gpq(
                 println!("found a WKT header!");
                 let data = vlr.data.clone();
                 let parsed_wkt_string = String::from_utf8(data).unwrap();
-                crs_wkt_string = Some(parsed_wkt_string);
+                wkt_transform = Some(WKTStringTransform::new(parsed_wkt_string));
             }
         }
     }
@@ -203,13 +210,17 @@ pub fn read_laz_to_gpq(
 
     println!("Writing GeoParquet to {outfile_path}...");
 
-    let options = if crs_wkt_string.is_some() {
-        let transform = WKTStringTransform::new(crs_wkt_string.unwrap());
+    let options = if wkt_transform.is_some() {
+        // build with CRS info
         GeoParquetWriterOptionsBuilder::default()
-            .set_crs_transform(Box::new(transform))
+            .set_primary_column("xy".to_string())
+            .set_crs_transform(Box::new(wkt_transform.unwrap()))
             .build()
     } else {
-        GeoParquetWriterOptionsBuilder::default().build()
+        // build w/o crs info (assumes WGS84)
+        GeoParquetWriterOptionsBuilder::default()
+            .set_primary_column("xy".to_string())
+            .build()
     };
 
     let mut gpq_encoder = GeoParquetRecordBatchEncoder::try_new(&schema, &options)?;
