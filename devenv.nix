@@ -16,24 +16,32 @@
   ];
   
   # https://devenv.sh/packages/
-  packages = [ 
-    pkgs.git 
-    pkgs.gdal 
-    pkgs.helix
+  packages = [
+    ## general stuff to have for dev work
+    pkgs.git # i love commiting
+    pkgs.helix # real gamer ide
+    pkgs.eza # modern ls
+    ## gis
+    pkgs.gdal # the big dog - nixpkgs grabs 3.11 at time of writing
+    # gdal-sys/bindgen helpers
+    #   ( because rust 'gdal' crate is linked to v3.4 out of the box
+    #   so we need a bunch of c related deps to do bindgen for our gdal version )
     pkgs.lldb 
     pkgs.libclang 
     pkgs.gcc 
     pkgs.glibc.dev 
     pkgs.stdenv.cc.cc.lib
-    pkgs.pqrs
+    pkgs.pqrs # cli for auditing .parquet files
   ];
+  # get the real gamer command prompt
+  starship.enable = true;
   
   # https://devenv.sh/languages/
   languages.rust.enable = true;
   
   # https://devenv.sh/scripts/
 
-  # download kansas laz
+  # download test data from USGS of some area in kansas to `test_kansas.laz` (~317M)
   scripts.data.exec = ''
     curl -o test_kansas.laz https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/KS_Statewide_2018_A18/KS_Statewide_B2_2018/LAZ/USGS_LPC_KS_Statewide_2018_A18_14S_KH_5005.laz
   '';
@@ -41,7 +49,7 @@
   # https://devenv.sh/basics/
   enterShell = ''
     # here you can run a shell script on boot of the shell
-    echo 'ayo this is a dev shell for point quaffer, got ya rust/gdal/helix/git/pqrs ready to go bub'
+    cat dev_env_start_msg.txt
   '';
   
   # https://devenv.sh/tests/
