@@ -22,6 +22,8 @@
     pkgs.helix # real gamer ide
     pkgs.marksman # language server for markdown
     pkgs.eza # modern ls
+    pkgs.trunk # for doing wasm testing
+    pkgs.taplo # toml formatter / linter
     ## gis
     pkgs.gdal # the big dog - nixpkgs grabs 3.11 at time of writing
     # gdal-sys/bindgen helpers
@@ -39,6 +41,8 @@
   
   # https://devenv.sh/languages/
   languages.rust.enable = true;
+  languages.rust.channel = "nightly";
+  languages.rust.targets = ["wasm32-unknown-unknown"];
   
   # https://devenv.sh/scripts/
 
@@ -50,6 +54,7 @@
   # https://devenv.sh/basics/
   enterShell = ''
     # here you can run a shell script on boot of the shell
+    cargo install -q wasm-server-runner
     cat dev_env_start_msg.txt
   '';
   

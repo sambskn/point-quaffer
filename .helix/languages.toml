@@ -1,7 +1,15 @@
 [[language]]
-name="rust"
+name = "rust"
 formatter = { command = "rustfmt" }
 
 [[language]]
-name="markdown"
+name = "markdown"
 soft-wrap.enable = true
+
+[[language]]
+name = "toml"
+auto-format = true
+formatter = { command = "taplo", args = ["fmt", "-"] }
+
+[language-server.taplo]
+config = {}
