@@ -20,6 +20,7 @@
     ## general stuff to have for dev work
     pkgs.git # i love commiting
     pkgs.helix # real gamer ide
+    pkgs.marksman # language server for markdown
     pkgs.eza # modern ls
     ## gis
     pkgs.gdal # the big dog - nixpkgs grabs 3.11 at time of writing
