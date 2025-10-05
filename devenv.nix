@@ -1,7 +1,6 @@
 { pkgs, lib, config, inputs, ... }:
 {
   # https://devenv.sh/basics/
-  env.GREET = "the quaff zone";
   env.LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
   env.BINDGEN_EXTRA_CLANG_ARGS = builtins.concatStringsSep " " [
     ''-I"${pkgs.glibc.dev}/include"''
@@ -32,9 +31,6 @@
   languages.rust.enable = true;
   
   # https://devenv.sh/scripts/
-  scripts.hello.exec = ''
-    echo hello from $GREET
-  '';
 
   # download kansas laz
   scripts.data.exec = ''
@@ -43,8 +39,8 @@
   
   # https://devenv.sh/basics/
   enterShell = ''
-    hello         # Run scripts directly
-    git --version # Use packages
+    # here you can run a shell script on boot of the shell
+    echo 'ayo this is a dev shell for point quaffer, got ya rust/gdal/helix/git/pqrs ready to go bub'
   '';
   
   # https://devenv.sh/tests/

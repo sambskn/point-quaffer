@@ -4,7 +4,9 @@
 rust cli that is for playing around with point cloud data and geoarrow/geoparquet
 
 ## setup
-we trying out devenv, so get that going and then do a `devenv shell` to enter the matrix
+so actually it's kinda annoying to use the gdal rust crate, so we're trying to use `devenv` and `nix` to pin some stuff downt o have a reproducible dev environment
+
+start up the shell with `devenv shell` and you'll pretty much be ready to roll, no more docs, just read the conifg sorry not sorry
 
 ## usage
 ### not yet updated for actual non local dev use pray for me
