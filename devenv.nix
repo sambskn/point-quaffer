@@ -22,7 +22,7 @@
     pkgs.helix # real gamer ide
     pkgs.marksman # language server for markdown
     pkgs.eza # modern ls
-    pkgs.trunk # for doing wasm testing
+    pkgs.trunk # for doing wasm builds/local serving
     pkgs.taplo # toml formatter / linter
     ## gis
     pkgs.gdal # the big dog - nixpkgs grabs 3.11 at time of writing
@@ -45,22 +45,26 @@
   languages.rust.targets = ["wasm32-unknown-unknown"];
   
   # https://devenv.sh/scripts/
-
+  # Runs Bevy viz WASM app hosted through trunk locally
+  scripts.viz.exec = ''
+    # (fyi trunk serve also does a build/watch)
+    trunk serve
+  '';
   # download test data from USGS of some area in kansas to `test_kansas.laz` (~317M)
-  scripts.data.exec = ''
+  scripts.test_data_kansas.exec = ''
     curl -o test_kansas.laz https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/KS_Statewide_2018_A18/KS_Statewide_B2_2018/LAZ/USGS_LPC_KS_Statewide_2018_A18_14S_KH_5005.laz
   '';
   
   # https://devenv.sh/basics/
   enterShell = ''
     # here you can run a shell script on boot of the shell
-    cargo install -q wasm-server-runner
+    # for now we just print some fun stuff to the console
     cat dev_env_start_msg.txt
   '';
   
   # https://devenv.sh/tests/
   enterTest = ''
-    echo "Running tests"
+    echo "Running tests (just the default one, these dont really test anything rn)"
     git --version | grep --color=auto "${pkgs.git.version}"
   '';
 }

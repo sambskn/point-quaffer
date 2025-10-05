@@ -3,17 +3,35 @@ name = "point-quaffer"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["cli", "laz_import"]
+cli = ["dep:clap"]
+laz_import = ["gdal", "parquet", "dep:las"]
+gdal = ["dep:gdal"]
+parquet = ["dep:parquet", "dep:geoparquet"]
+wasm_viz = ["dep:bevy"]
+
+# patch to use more wasm friendly out of the box fork
+# not trying to do all the setup bs described here:
+# https://docs.rs/getrandom/0.3.3/getrandom/#webassembly-support 
+[patch.crates-io]
+getrandom = { git = "https://github.com/benfrankel/getrandom" }
+
 [dependencies]
 arrow-array = "56.2.0"
 arrow-schema = "56.2.0"
-clap = { version = "4.5.48", features = ["derive"] }
-gdal = { version = "0.18.0", features = ["bindgen"] }
+bevy = { version = "0.17.2", features = [
+  "web",
+  "bevy_dev_tools",
+], optional = true }
+clap = { version = "4.5.48", features = ["derive"], optional = true }
+gdal = { version = "0.18.0", features = ["bindgen"], optional = true }
 geo = "0.31.0"
-geoarrow = { version ="0.5.0" }
+geoarrow = { version = "0.5.0" }
 geoarrow-array = "0.5.0"
 geoarrow-schema = "0.5.0"
-geoparquet = "0.5.0"
+geoparquet = { version = "0.5.0", optional = true }
 geozero = "0.14.0"
-las = { version = "0.9", features = ["laz-parallel"] }
-parquet = "56.2.0"
+las = { version = "0.9", features = ["laz-parallel"], optional = true }
+parquet = { version = "56.2.0", optional = true }
 serde_json = "1.0.145"

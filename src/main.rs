@@ -1,12 +1,24 @@
 // get our modules
+#[cfg(feature = "laz_import")]
 mod laz_to_gpq;
-use laz_to_gpq::read_laz_to_gpq;
-mod read_parq;
-use read_parq::read;
 
+#[cfg(feature = "laz_import")]
+use laz_to_gpq::read_laz_to_gpq;
+
+#[cfg(feature = "parquet")]
+mod read_parq;
+
+#[cfg(feature = "parquet")]
+use read_parq::read;
+#[cfg(feature = "wasm_viz")]
+mod bevy_viz;
+#[cfg(feature = "wasm_viz")]
+use bevy_viz::start_bevy;
+#[cfg(feature = "cli")]
 use clap::{Parser, Subcommand};
 
 // Define args for CLI
+#[cfg(feature = "cli")]
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct PointQuaffer {
@@ -15,9 +27,11 @@ struct PointQuaffer {
     process: ProcessType,
 }
 
+#[cfg(feature = "cli")]
 #[derive(Subcommand)]
 enum ProcessType {
     // Importing .laz files to the geoparquet schema/file
+    #[cfg(feature = "laz_import")]
     LazImport {
         // path to .laz file
         input: String,
@@ -28,38 +42,55 @@ enum ProcessType {
         #[arg(short, long, default_value=None)]
         max_point_count: Option<i64>,
     },
-    // Visualizing an imported set of data
-    Viz {
+    // Reading an imported set of data
+    #[cfg(feature = "parquet")]
+    Read {
         // path to geoparquet file (created by laz-import)
         input: String,
     },
+    Hello,
 }
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 fn main() -> Result<()> {
-    let cli = PointQuaffer::parse();
+    #[cfg(feature = "wasm_viz")]
+    {
+        start_bevy();
+        return Ok(());
+    }
+    #[cfg(feature = "cli")]
+    {
+        let cli = PointQuaffer::parse();
 
-    match &cli.process {
-        ProcessType::LazImport {
-            input,
-            filter_to_ground,
-            max_point_count,
-        } => {
-            let mut outfile_path = input.trim_end_matches(".laz").to_string();
-            if *filter_to_ground {
-                outfile_path += "_filter";
+        match &cli.process {
+            #[cfg(feature = "laz_import")]
+            ProcessType::LazImport {
+                input,
+                filter_to_ground,
+                max_point_count,
+            } => {
+                let mut outfile_path = input.trim_end_matches(".laz").to_string();
+                if *filter_to_ground {
+                    outfile_path += "_filter";
+                }
+                outfile_path = format!("{}.parquet", outfile_path);
+                read_laz_to_gpq(
+                    input.to_string(),
+                    *filter_to_ground,
+                    *max_point_count,
+                    outfile_path,
+                )
             }
-            outfile_path = format!("{}.parquet", outfile_path);
-            read_laz_to_gpq(
-                input.to_string(),
-                *filter_to_ground,
-                *max_point_count,
-                outfile_path,
-            )
-        }
-        ProcessType::Viz { input } => {
-            read(input);
-            Ok(())
+
+            #[cfg(feature = "parquet")]
+            ProcessType::Read { input } => {
+                read(input);
+                Ok(())
+            }
+            ProcessType::Hello => {
+                println!("yo it's the point quaffer");
+                Ok(())
+            }
         }
     }
 }

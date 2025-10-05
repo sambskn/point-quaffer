@@ -1,0 +1,7 @@
+[build]
+target = "index.html"
+features = ["wasm_viz"]
+no_default_features = true
+
+[tools]
+wasm-bindgen = "0.2.95"

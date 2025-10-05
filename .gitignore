@@ -1,4 +1,8 @@
+# Build artifacts
 /target
+/dist
+
+# test data files
 test_*.laz
 test_*.las
 test_*.parquet
