@@ -25,6 +25,7 @@
     pkgs.gcc 
     pkgs.glibc.dev 
     pkgs.stdenv.cc.cc.lib
+    pkgs.pqrs
   ];
   
   # https://devenv.sh/languages/
