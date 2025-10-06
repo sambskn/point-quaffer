@@ -50,6 +50,10 @@
     # (fyi trunk serve also does a build/watch)
     trunk serve
   '';
+  # do a cargo check on the wasm build
+  scripts.check_viz.exec = ''
+    cargo check --no-default-features --features wasm_viz --target wasm32-unknown-unknown
+  '';
   # download test data from USGS of some area in kansas to `test_kansas.laz` (~317M)
   scripts.test_data_kansas.exec = ''
     curl -o test_kansas.laz https://rockyweb.usgs.gov/vdelivery/Datasets/Staged/Elevation/LPC/Projects/KS_Statewide_2018_A18/KS_Statewide_B2_2018/LAZ/USGS_LPC_KS_Statewide_2018_A18_14S_KH_5005.laz
