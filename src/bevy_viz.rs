@@ -1,6 +1,5 @@
-use bevy::{color::palettes::css::WHITE, prelude::*};
+use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use std::f32::consts::PI;
 use voronoi_mosaic::prelude::*;
 
 const DELAUNAY_EDGE_COLOUR: Color = Color::srgb(1.0, 0.0, 0.0);
@@ -56,19 +55,20 @@ fn visuals(
 ) {
     // points to be used
     let points = vec![
-        Vec3::new(-50.0, -50.0, -50.0),
-        Vec3::new(50.0, -50.0, -50.0),
+        Vec3::new(-50.0, -50.0, 50.0),
+        Vec3::new(50.0, -50.0, 50.0),
         Vec3::new(50.0, -50.0, 50.0),
         Vec3::new(-50.0, -50.0, 50.0),
-        Vec3::new(-50.0, 50.0, -50.0),
-        Vec3::new(50.0, 50.0, -50.0),
-        Vec3::new(50.0, 50.0, 50.0),
         Vec3::new(-50.0, 50.0, 50.0),
+        Vec3::new(50.0, 50.0, 50.0),
+        Vec3::new(50.0, 50.0, 50.0),
+        Vec3::new(-50.0, 53.0, 50.0),
         Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(20.0, 20.0, 20.0),
+        Vec3::new(10.0, -20.0, 40.0),
     ];
 
     // compute data
-
     let mosaic = Mosaic3d::new(&points);
 
     if let Some(delaunay) = mosaic.get_delaunay() {
@@ -83,7 +83,6 @@ fn visuals(
 }
 
 /// Labels an entity in the Delaunay view for querying
-
 #[derive(Component)]
 struct DelaunayLabel;
 
@@ -151,7 +150,6 @@ fn create_delaunay_visuals(
 }
 
 /// Labels an entity in the Voronoi view for querying
-
 #[derive(Component)]
 struct VoronoiLabel;
 
