@@ -14,6 +14,14 @@ use read_parq::read;
 mod bevy_viz;
 #[cfg(feature = "wasm_viz")]
 use bevy_viz::start_bevy;
+#[cfg(feature = "wasm_viz")]
+mod bevy_blob_loader_lib;
+#[cfg(feature = "wasm_viz")]
+mod bevy_blob_loader_path;
+#[cfg(feature = "wasm_viz")]
+mod bevy_blob_loader_source;
+#[cfg(feature = "wasm_viz")]
+mod bevy_web_file_drop;
 #[cfg(feature = "cli")]
 use clap::{Parser, Subcommand};
 
