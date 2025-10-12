@@ -10,6 +10,7 @@ laz_import = ["gdal", "parquet", "dep:las"]
 gdal = ["dep:gdal"]
 parquet = ["dep:parquet", "dep:geoparquet"]
 wasm_viz = [
+  "parquet",
   "dep:bevy",
   "dep:bevy_panorbit_camera",
   "dep:startin",
