@@ -44,8 +44,11 @@ fn handle_drag_n_drop(mut drag_and_drop_reader: MessageReader<FileDragAndDrop>) 
     for drag_and_drop in drag_and_drop_reader.read() {
         info!("{:?}", drag_and_drop);
         match drag_and_drop {
-            FileDragAndDrop::DroppedFile => {
-                info!("ayo thats a drop file");
+            FileDragAndDrop::DroppedFile {
+                window: _,
+                path_buf: filepath,
+            } => {
+                info!("ayo thats a drop file {}", filepath.display());
             }
             _ => {
                 info!("some other file event...");

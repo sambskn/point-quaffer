@@ -41,6 +41,8 @@
     pkgs.glibc.dev 
     pkgs.stdenv.cc.cc.lib
     pkgs.pqrs # cli for auditing .parquet files
+    pkgs.biome # to get some js/html linting/formatting
+    
     # stuff copied from bevy nix stuff
     # Audio (Linux only)
     pkgs.alsa-lib

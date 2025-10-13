@@ -13,3 +13,47 @@ formatter = { command = "taplo", args = ["fmt", "-"] }
 
 [language-server.taplo]
 config = {}
+
+[[language]]
+name = "javascript"
+language-servers = ["biome"]
+formatter = { command = "biome", args = [
+  "format",
+  "--stdin-file-path",
+  "file.js",
+] }
+auto-format = true
+
+[[language]]
+name = "typescript"
+language-servers = ["biome"]
+formatter = { command = "biome", args = [
+  "format",
+  "--stdin-file-path",
+  "file.ts",
+] }
+auto-format = true
+
+[[language]]
+name = "html"
+language-servers = ["biome"]
+formatter = { command = "biome", args = [
+  "format",
+  "--stdin-file-path",
+  "file.html",
+] }
+auto-format = true
+
+[[language]]
+name = "json"
+language-servers = ["biome"]
+formatter = { command = "biome", args = [
+  "format",
+  "--stdin-file-path",
+  "file.json",
+] }
+auto-format = true
+
+[language-server.biome]
+command = "biome"
+args = ["lsp-proxy"]
