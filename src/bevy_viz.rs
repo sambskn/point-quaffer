@@ -1,5 +1,5 @@
 use crate::bevy_web_file_drop::WebFileDropPlugin;
-use crate::read_parq::read;
+// use crate::read_parq::read;
 use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
@@ -43,8 +43,14 @@ fn lights_camera(mut commands: Commands) {
 fn handle_drag_n_drop(mut drag_and_drop_reader: MessageReader<FileDragAndDrop>) {
     for drag_and_drop in drag_and_drop_reader.read() {
         info!("{:?}", drag_and_drop);
-        let path_buf = drag_and_drop.path_buf;
-        read(path_buf);
+        match drag_and_drop {
+            FileDragAndDrop::DroppedFile => {
+                info!("ayo thats a drop file");
+            }
+            _ => {
+                info!("some other file event...");
+            }
+        }
     }
 }
 

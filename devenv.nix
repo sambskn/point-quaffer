@@ -13,6 +13,12 @@
     pkgs.clang_18 
     pkgs.libclang.lib 
     pkgs.stdenv.cc.cc.lib 
+    pkgs.vulkan-loader
+    pkgs.xorg.libX11
+    pkgs.xorg.libXi
+    pkgs.xorg.libXcursor
+    pkgs.libxkbcommon
+    pkgs.wayland
   ];
   
   # https://devenv.sh/packages/
@@ -35,6 +41,21 @@
     pkgs.glibc.dev 
     pkgs.stdenv.cc.cc.lib
     pkgs.pqrs # cli for auditing .parquet files
+    # stuff copied from bevy nix stuff
+    # Audio (Linux only)
+    pkgs.alsa-lib
+    # Cross Platform 3D Graphics API
+    pkgs.vulkan-loader
+    # For debugging around vulkan
+    pkgs.vulkan-tools
+    # Other dependencies
+    pkgs.libudev-zero
+    pkgs.xorg.libX11
+    pkgs.xorg.libXcursor
+    pkgs.xorg.libXi
+    pkgs.xorg.libXrandr
+    pkgs.libxkbcommon
+    pkgs.wayland
   ];
   # get the real gamer command prompt
   starship.enable = true;
