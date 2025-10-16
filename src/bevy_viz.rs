@@ -1,7 +1,10 @@
+use bevy::asset::RenderAssetUsages;
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy_http_client::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use serde::Deserialize;
+use startin;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Points {
@@ -38,10 +41,46 @@ fn fetch_points(mut ev_request: MessageWriter<TypedRequest<Points>>) {
     }
 }
 
-fn handle_response(mut events: ResMut<Messages<TypedResponse<Points>>>) {
+fn vecs_to_arrays(vecs: Vec<Vec<f64>>) -> Vec<Vec3> {
+    vecs.into_iter()
+        .filter_map(|v| Some(Vec3::new(v[0] as f32, v[1] as f32, v[2] as f32)))
+        .collect()
+}
+
+fn handle_response(
+    mut events: ResMut<Messages<TypedResponse<Points>>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     for response in events.drain() {
+        info!("got points from endpoint ({} total)", response.points.len());
         let response: Points = response.into_inner();
-        info!("first point: {:?}", response.points[0]);
+        // make tin
+        let mut dt = startin::Triangulation::new();
+        dt.insert(&response.points, startin::InsertionStrategy::AsIs);
+        info!("{}", dt);
+        let triangles = dt.all_finite_triangles();
+        let mut indices = Vec::with_capacity(triangles.len() * 3);
+
+        for triangle in triangles {
+            indices.push(triangle.v[0] as u32);
+            indices.push(triangle.v[1] as u32);
+            indices.push(triangle.v[2] as u32);
+        }
+
+        let vertices = vecs_to_arrays(dt.all_vertices());
+        let mesh = Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
+        .with_inserted_indices(Indices::U32(indices));
+        commands.spawn((
+            Mesh3d(meshes.add(mesh)),
+            MeshMaterial3d(materials.add(StandardMaterial { ..default() })),
+            Transform::default(),
+        ));
     }
 }
 
@@ -67,26 +106,3 @@ fn lights_camera(mut commands: Commands) {
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
-
-// fn visuals(
-//     mut cmds: Commands,
-//     mut mesh_assets: ResMut<Assets<Mesh>>,
-//     mut materials: ResMut<Assets<StandardMaterial>>,
-// ) {
-//     // points to be used
-//     let points: Vec<[f64; 3]> = vec![
-//         [-50.0, -50.0, 50.0],
-//         [50.0, -50.0, 50.0],
-//         [50.0, -50.0, 50.0],
-//         [-50.0, -50.0, 50.0],
-//         [-50.0, 50.0, 50.0],
-//         [50.0, 50.0, 50.0],
-//         [50.0, 50.0, 50.0],
-//         [-50.0, 53.0, 50.0],
-//         [5.0, 0.0, 0.0],
-//         [50.0, 20.0, 20.0],
-//         [50.0, -20.0, 40.0],
-//     ];
-//     let mut dt = startin::Triangulation::new();
-//     dt.insert(&points, startin::InsertionStrategy::AsIs);
-// }
