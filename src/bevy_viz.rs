@@ -1,26 +1,54 @@
-use crate::bevy_web_file_drop::WebFileDropPlugin;
-// use crate::read_parq::read;
 use bevy::prelude::*;
+use bevy_http_client::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct Points {
+    pub points: Vec<[f64; 3]>,
+}
 
 pub fn start_bevy() {
-    App::new()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Window {
-                    title: "point-quaffer-viz".to_string(),
-                    fit_canvas_to_parent: true,
-                    ..default()
-                }
-                .into(),
+    let mut app = App::new();
+    app.add_plugins(
+        DefaultPlugins.set(WindowPlugin {
+            primary_window: Window {
+                title: "point-quaffer-viz".to_string(),
+                fit_canvas_to_parent: true,
                 ..default()
-            }),
-        )
-        .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(WebFileDropPlugin)
-        .add_systems(Startup, lights_camera)
-        .add_systems(Update, handle_drag_n_drop)
-        .run();
+            }
+            .into(),
+            ..default()
+        }),
+    )
+    .add_plugins((PanOrbitCameraPlugin, HttpClientPlugin))
+    .add_systems(Startup, (lights_camera, fetch_points))
+    .add_systems(Update, (handle_response, handle_error));
+    app.register_request_type::<Points>();
+    app.run();
+}
+
+fn fetch_points(mut ev_request: MessageWriter<TypedRequest<Points>>) {
+    if let Ok(request) = HttpClient::new()
+        .get("http://localhost:8000/points")
+        .headers(&[("Content-Type", "application/json"), ("Accept", "*/*")])
+        .try_with_type::<Points>()
+    {
+        ev_request.write(request);
+    }
+}
+
+fn handle_response(mut events: ResMut<Messages<TypedResponse<Points>>>) {
+    for response in events.drain() {
+        let response: Points = response.into_inner();
+        info!("first point: {:?}", response.points[0]);
+    }
+}
+
+fn handle_error(mut ev_error: MessageReader<TypedResponseError<Points>>) {
+    for error in ev_error.read() {
+        info!("err getting points: {:?}", error.err);
+    }
 }
 
 fn lights_camera(mut commands: Commands) {
@@ -38,23 +66,6 @@ fn lights_camera(mut commands: Commands) {
         PanOrbitCamera::default(),
         Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
-}
-
-fn handle_drag_n_drop(mut drag_and_drop_reader: MessageReader<FileDragAndDrop>) {
-    for drag_and_drop in drag_and_drop_reader.read() {
-        info!("{:?}", drag_and_drop);
-        match drag_and_drop {
-            FileDragAndDrop::DroppedFile {
-                window: _,
-                path_buf: filepath,
-            } => {
-                info!("ayo thats a drop file {}", filepath.display());
-            }
-            _ => {
-                info!("some other file event...");
-            }
-        }
-    }
 }
 
 // fn visuals(
