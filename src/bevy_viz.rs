@@ -41,9 +41,15 @@ fn fetch_points(mut ev_request: MessageWriter<TypedRequest<Points>>) {
     }
 }
 
-fn vecs_to_arrays(vecs: Vec<Vec<f64>>) -> Vec<Vec3> {
+fn vecs_to_arrays(vecs: Vec<Vec<f64>>, x_min: f64, y_min: f64) -> Vec<Vec3> {
     vecs.into_iter()
-        .filter_map(|v| Some(Vec3::new(v[0] as f32, v[1] as f32, v[2] as f32)))
+        .filter_map(|v| {
+            Some(Vec3::new(
+                (v[0] - x_min) as f32,
+                (v[1] - y_min) as f32,
+                v[2] as f32,
+            ))
+        })
         .collect()
 }
 
@@ -63,13 +69,17 @@ fn handle_response(
         let triangles = dt.all_finite_triangles();
         let mut indices = Vec::with_capacity(triangles.len() * 3);
 
+        let bbox = dt.get_bbox();
+
         for triangle in triangles {
             indices.push(triangle.v[0] as u32);
             indices.push(triangle.v[1] as u32);
             indices.push(triangle.v[2] as u32);
         }
 
-        let vertices = vecs_to_arrays(dt.all_vertices());
+        let x_min = bbox[0];
+        let y_min = bbox[1];
+        let vertices = vecs_to_arrays(dt.all_vertices(), x_min, y_min);
         let mesh = Mesh::new(
             PrimitiveTopology::TriangleList,
             RenderAssetUsages::default(),
