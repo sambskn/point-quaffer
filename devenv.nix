@@ -68,13 +68,20 @@
   languages.rust.targets = ["wasm32-unknown-unknown"];
   
   # https://devenv.sh/scripts/
-  # Runs Bevy viz WASM app hosted through trunk locally
+  # Runs Bevy viz app natively
   scripts.viz.exec = ''
+    cargo run --no-default-features --features wasm_viz
+  '';
+  scripts.check_viz.exec = ''
+    cargo check --no-default-features --features wasm_viz
+  '';
+  # Runs Bevy viz WASM app hosted through trunk locally
+  scripts.wasmviz.exec = ''
     # (fyi trunk serve also does a build/watch)
     trunk serve
   '';
   # do a cargo check on the wasm build
-  scripts.check_viz.exec = ''
+  scripts.check_wasmviz.exec = ''
     cargo check --no-default-features --features wasm_viz --target wasm32-unknown-unknown
   '';
   # download test data from USGS of some area in kansas to `test_kansas.laz` (~317M)
