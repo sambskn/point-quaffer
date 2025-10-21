@@ -1,10 +1,11 @@
-use bevy::asset::RenderAssetUsages;
-use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 use bevy_http_client::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use colorgrad;
+use colorgrad::Gradient;
 use serde::Deserialize;
 use startin;
+use std::f32::consts::PI;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct Points {
@@ -61,14 +62,26 @@ fn handle_response(
         dt.insert(&response.points, startin::InsertionStrategy::AsIs);
         info!("{}", dt);
         let triangles = dt.all_finite_triangles();
-        // let mut indices = Vec::with_capacity(triangles.len() * 3);
+
+        // color stuff
+        let gradient = colorgrad::GradientBuilder::new()
+            .html_colors(&["gold", "hotpink", "darkturquoise"])
+            .domain(&[-0.5, 0.5])
+            .mode(colorgrad::BlendMode::Rgb)
+            .build::<colorgrad::LinearGradient>()
+            .unwrap();
 
         let bbox = dt.get_bbox();
-        let x_min = bbox[0] as f32;
-        let y_min = bbox[1] as f32;
-        let mut counter = 0;
+        // ideally this offset centers the point mesh
+        // for now just grab min values to stick corner of mesh at origin
+        let x_offset = -bbox[0] as f32;
+        let y_offset = -bbox[1] as f32;
+        info!("x_offset {:?}", x_offset);
+        info!("y_offset {:?}", y_offset);
         let vertices = vecs_to_arrays(dt.all_vertices());
         let mut z_offset = 0.0;
+        // loop through all finite triangles and spawn as primitve bevy meshes
+        // (ideally this just makes one mesh with all the triangles instead)
         for triangle in triangles {
             let a = vertices[triangle.v[0]];
             let b = vertices[triangle.v[1]];
@@ -76,75 +89,39 @@ fn handle_response(
             if z_offset == 0.0 {
                 z_offset = c[2];
             }
+            // swtiching y and z values because that's what looked right???
             let triangle = Triangle3d::new(
                 vec3(
-                    (a[0] - x_min) as f32,
-                    (a[1] - y_min) as f32,
-                    a[2] as f32 - z_offset,
-                ),
-                vec3(
-                    (b[0] - x_min) as f32,
-                    (b[1] - y_min) as f32,
-                    b[2] as f32 - z_offset,
-                ),
-                vec3(
-                    (c[0] - x_min) as f32,
-                    (c[1] - y_min) as f32,
+                    (c[0] + x_offset) as f32,
                     c[2] as f32 - z_offset,
+                    (c[1] + y_offset) as f32,
+                ),
+                vec3(
+                    (b[0] + x_offset) as f32,
+                    b[2] as f32 - z_offset,
+                    (b[1] + y_offset) as f32,
+                ),
+                vec3(
+                    (a[0] + x_offset) as f32,
+                    a[2] as f32 - z_offset,
+                    (a[1] + y_offset) as f32,
                 ),
             );
             let mesh = Mesh::from(triangle);
+            // assign color from gradient based on z value
+            let avg_z = (c[2] + b[2] + a[2]) / 3.0 - z_offset;
+            let color_rgb8 = gradient.at(avg_z).to_rgba8();
+            // spawn primative mesh
             commands.spawn((
                 Mesh3d(meshes.add(mesh)),
                 MeshMaterial3d(materials.add(Color::srgb_u8(
-                    (12 + counter / 2) % 255,
-                    (40 + counter) % 255,
-                    (1 + counter / 4) % 255,
+                    color_rgb8[0],
+                    color_rgb8[1],
+                    color_rgb8[2],
                 ))),
                 Transform::default(),
             ));
-            if counter == 0 {
-                info!("debug triangle");
-                info!("{:?}", triangle);
-            }
-            counter += 1;
-            if counter > 155 {
-                counter = 0;
-            }
         }
-
-        // let uvs: Vec<Vec2> = dt
-        //     .all_vertices()
-        //     .into_iter()
-        //     .map(|v| Vec2::new(0.5, 0.5))
-        //     .collect();
-        // let mut mesh = Mesh::new(
-        //     PrimitiveTopology::TriangleList,
-        //     RenderAssetUsages::default(),
-        // )
-        // .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
-        // .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-        // .with_inserted_indices(Indices::U32(indices));
-        // mesh.compute_area_weighted_normals();
-        // commands.spawn((
-        //     Mesh3d(meshes.add(mesh)),
-        //     MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-        //     Transform::default(),
-        // ));
-
-        // also spawn some test stuff
-        // circular base
-        commands.spawn((
-            Mesh3d(meshes.add(Circle::new(4.0))),
-            MeshMaterial3d(materials.add(Color::WHITE)),
-            Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
-        ));
-        // cube
-        commands.spawn((
-            Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-            MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-            Transform::from_xyz(0.0, 0.5, 0.0),
-        ));
     }
 }
 
@@ -156,17 +133,24 @@ fn handle_error(mut ev_error: MessageReader<TypedResponseError<Points>>) {
 
 fn lights_camera(mut commands: Commands) {
     // light
+    // copied from light example, should be tuned to specific mesh more or editable
     commands.spawn((
-        PointLight {
+        DirectionalLight {
+            illuminance: light_consts::lux::OVERCAST_DAY,
             shadows_enabled: true,
             ..default()
         },
-        Transform::from_xyz(4.0, 8.0, 4.0),
+        Transform {
+            translation: Vec3::new(0.0, 2.0, 0.0),
+            rotation: Quat::from_rotation_x(-PI / 4.),
+            ..default()
+        },
     ));
 
     // camera
+    // needs better defaults!
     commands.spawn((
         PanOrbitCamera::default(),
-        Transform::from_xyz(-2.5, -2.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(2.5, 2.5, 9.0).looking_at(Vec3::new(5.0, 0., -5.0), Vec3::Y),
     ));
 }
